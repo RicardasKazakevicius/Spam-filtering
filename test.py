@@ -33,8 +33,13 @@ mostCommon = 500
 noOfEmail = enronAll
 
 file = open(str(noOfEmail) + ".txt", "w")
+swFile = open("stopWords.txt", "r")
 
 def make_Dictionary(root_dir):
+    stopWords = swFile.readlines()
+    for i in range(0,len(stopWords)):
+        stopWords[i] = stopWords[i].replace("\n", "")
+    
     emails_dirs = [os.path.join(root_dir,f) for f in os.listdir(root_dir)]    
     all_words = []       
     for emails_dir in emails_dirs:
@@ -48,14 +53,11 @@ def make_Dictionary(root_dir):
                         all_words += words
     dictionary = Counter(all_words)
     
-    list_to_remove = dictionary.keys()
-    for item in list_to_remove:
-        if item.isalpha() == False: 
+    for item in dictionary.keys():
+        if item.isalpha() == False or item in stopWords or len(item) == 1: 
             del dictionary[item]
-        elif len(item) == 1:
-            del dictionary[item]
+  
     dictionary = dictionary.most_common(mostCommon)
-    
     return dictionary
     
 def extract_features(root_dir): 
@@ -80,7 +82,6 @@ def extract_features(root_dir):
                           wordID = i
                           features_matrix[docID,wordID] = all_words.count(word)
                 train_labels[docID] = int(mail.split(".")[-2] == 'spam')
-                print mail.split(".")[-2] == 'spam'
                 docID = docID + 1                
     return features_matrix,train_labels
 
@@ -94,37 +95,31 @@ def trainTest(model, name):
 		accurasy = accuracy_score(y_test, result)*100
 		accurasyList[i] = accurasy
 		#print accurasy
+	
 	file.write(name + "\n")
 	file.write('{0:.2f}'.format(np.mean(np.array(accurasyList))) + "\n")
 	file.write('{0:.2f}'.format(np.std(np.array(accurasyList))) + "\n")
 
 
-root_dir = directory
-dictionary = make_Dictionary(root_dir)
+dictionary = make_Dictionary(directory)
+features_matrix, labels = extract_features(directory)
 
-features_matrix, labels = extract_features(root_dir)
+file.write(str(features_matrix.shape)+"\n")
+file.write(str(labels.shape)+"\n")
+file.write(str(sum(labels==0)) + " " + str(sum(labels==1))+"\n")
 
-print (features_matrix.shape)
-print (labels.shape)
-print (sum(labels==0),sum(labels==1))
-
-print "\nNN"
 trainTest(MLPClassifier(), "NN")
 
-print "\nLG"
 trainTest(LogisticRegression(), "LG")
 
-print "\nSVM"
 trainTest(LinearSVC(), "SVM")
 
-print "\nNB"
 trainTest(MultinomialNB(), "NB")
 
-print "\nTREE"
 trainTest(DecisionTreeClassifier(), "TREE")
 
-print "\nKNN"
 trainTest(neighbors.KNeighborsClassifier(), "KNN")
 
 
+swFile.close()
 file.close()
